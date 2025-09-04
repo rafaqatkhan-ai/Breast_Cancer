@@ -1,6 +1,6 @@
 # app.py
 # ================================
-# STREAMLIT APP: Breast Cancer Pipeline
+# STREAMLIT APP: Breast Cancer Pipeline (Styled Version)
 # ================================
 
 import streamlit as st
@@ -70,10 +70,40 @@ transform = transforms.Compose([
 ])
 
 # -------------------------------
+# CUSTOM STYLING
+# -------------------------------
+page_bg = """
+<style>
+[data-testid="stAppViewContainer"] {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+[data-testid="stHeader"] {
+    background: rgba(0,0,0,0);
+}
+[data-testid="stSidebar"] {
+    background: #f0f2f6;
+}
+h1 {
+    text-align: center;
+    color: #2c3e50;
+}
+</style>
+"""
+st.markdown(page_bg, unsafe_allow_html=True)
+
+# -------------------------------
 # STREAMLIT UI
 # -------------------------------
-st.title("🩺 Breast Cancer Detection with AI")
+st.markdown("<h1>🩺 Breast Cancer Detection with AI</h1>", unsafe_allow_html=True)
 st.write("Upload a histopathology image to classify it as **Benign** or **Malignant**.")
+
+# Sidebar
+st.sidebar.title("About this App")
+st.sidebar.info(
+    "This AI model combines **EfficientNet** with a **Vision Transformer head** "
+    "to classify breast cancer histopathology images into **Benign** or **Malignant**. "
+    "It also provides **Grad-CAM visualization** to highlight important regions."
+)
 
 # Load model
 model = HybridModel(num_classes=num_classes).to(device)
@@ -96,8 +126,10 @@ if uploaded_file is not None:
         pred_class = np.argmax(probs)
 
     classes = ["Benign", "Malignant"]
-    st.subheader(f"🔍 Prediction: **{classes[pred_class]}**")
-    st.write(f"Confidence: {probs[pred_class]*100:.2f}%")
+
+    # Show Prediction with Metric
+    st.subheader("🔍 Classification Result")
+    st.metric(label="Prediction", value=classes[pred_class], delta=f"{probs[pred_class]*100:.2f}% confidence")
 
     # -------------------------------
     # GRAD-CAM
