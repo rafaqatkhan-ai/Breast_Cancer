@@ -1,13 +1,12 @@
 # app.py
 # ================================
-# STREAMLIT APP: Breast Cancer Pipeline (Styled Version)
+# STREAMLIT APP: Breast Cancer Pipeline (Styled Research Demo)
 # ================================
 
 import streamlit as st
 import torch
 import torch.nn as nn
 from torchvision import models, transforms
-import matplotlib.pyplot as plt
 import numpy as np
 import cv2
 from PIL import Image
@@ -70,31 +69,62 @@ transform = transforms.Compose([
 ])
 
 # -------------------------------
-# CUSTOM STYLING
+# CUSTOM FRONTEND STYLING
 # -------------------------------
-page_bg = """
-<style>
-[data-testid="stAppViewContainer"] {
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-}
-[data-testid="stHeader"] {
-    background: rgba(0,0,0,0);
-}
-[data-testid="stSidebar"] {
-    background: #f0f2f6;
-}
-h1 {
-    text-align: center;
-    color: #2c3e50;
-}
-</style>
-"""
-st.markdown(page_bg, unsafe_allow_html=True)
+st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+
+    html, body, [class*="css"]  {
+        font-family: 'Poppins', sans-serif;
+    }
+
+    [data-testid="stAppViewContainer"] {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    }
+
+    [data-testid="stHeader"] {
+        background: rgba(0,0,0,0);
+    }
+
+    [data-testid="stSidebar"] {
+        background: #f0f2f6;
+    }
+
+    .main-title {
+        background: linear-gradient(90deg, #6a11cb 0%, #2575fc 100%);
+        padding: 20px;
+        border-radius: 15px;
+        text-align: center;
+        color: white;
+        font-size: 24px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        box-shadow: 0px 4px 15px rgba(0,0,0,0.2);
+    }
+
+    .card {
+        background: white;
+        padding: 15px 25px;
+        border-radius: 15px;
+        margin-top: 20px;
+        box-shadow: 0px 4px 12px rgba(0,0,0,0.1);
+    }
+
+    h2, h3 {
+        color: #2c3e50;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # -------------------------------
-# STREAMLIT UI
+# HEADER
 # -------------------------------
-st.markdown("<h1>🩺 Breast Cancer Detection with AI</h1>", unsafe_allow_html=True)
+st.markdown(
+    '<div class="main-title">A Hybrid EfficientNet–Transformer Model for Breast Cancer Detection<br>from Multispectral Histopathology Images</div>',
+    unsafe_allow_html=True
+)
+
 st.write("Upload a histopathology image to classify it as **Benign** or **Malignant**.")
 
 # Sidebar
@@ -105,12 +135,16 @@ st.sidebar.info(
     "It also provides **Grad-CAM visualization** to highlight important regions."
 )
 
-# Load model
+# -------------------------------
+# LOAD MODEL
+# -------------------------------
 model = HybridModel(num_classes=num_classes).to(device)
 model.load_state_dict(torch.load("hybrid_model_full.pth", map_location=device))
 model.eval()
 
-# Upload image
+# -------------------------------
+# FILE UPLOADER
+# -------------------------------
 uploaded_file = st.file_uploader("Choose an image...", type=["jpg","jpeg","png"])
 if uploaded_file is not None:
     image = Image.open(uploaded_file).convert("RGB")
@@ -127,9 +161,13 @@ if uploaded_file is not None:
 
     classes = ["Benign", "Malignant"]
 
-    # Show Prediction with Metric
+    # -------------------------------
+    # CLASSIFICATION RESULT (CARD)
+    # -------------------------------
+    st.markdown('<div class="card">', unsafe_allow_html=True)
     st.subheader("🔍 Classification Result")
     st.metric(label="Prediction", value=classes[pred_class], delta=f"{probs[pred_class]*100:.2f}% confidence")
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # -------------------------------
     # GRAD-CAM
@@ -181,5 +219,10 @@ if uploaded_file is not None:
     overlay = heatmap + np.float32(image.resize((image_size, image_size))) / 255
     overlay = overlay / np.max(overlay)
 
+    # -------------------------------
+    # GRAD-CAM VISUALIZATION (CARD)
+    # -------------------------------
+    st.markdown('<div class="card">', unsafe_allow_html=True)
     st.subheader("🔥 Grad-CAM Visualization")
     st.image((overlay * 255).astype(np.uint8), use_column_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
