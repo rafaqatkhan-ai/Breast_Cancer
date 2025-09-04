@@ -209,7 +209,7 @@ class UNet(nn.Module):
 
 # Load lightweight U-Net
 unet_model = UNet(n_channels=3, n_classes=1).to(device)
-unet_model.load_state_dict(torch.load("unet_model.pth", map_location=device))
+unet_model.load_state_dict(torch.load("hybrid_model_full.pth", map_location=device))
 unet_model.eval()
 
 
