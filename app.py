@@ -151,3 +151,30 @@ if uploaded_file is not None:
 
     st.subheader("🔥 Grad-CAM Visualization")
     st.image((overlay * 255).astype(np.uint8), use_column_width=True)
+    import segmentation_models_pytorch as smp
+
+# -------------------------------
+# U-NET SEGMENTATION (placeholder)
+# -------------------------------
+# Assume you trained and saved unet_model.pth
+unet_model = smp.Unet(
+    encoder_name="resnet34", 
+    encoder_weights="imagenet", 
+    in_channels=3, 
+    classes=1
+).to(device)
+
+unet_model.load_state_dict(torch.load("unet_model.pth", map_location=device))
+unet_model.eval()
+
+with torch.no_grad():
+    mask_pred = torch.sigmoid(unet_model(input_tensor)).cpu().numpy()[0,0]
+    mask_pred = (mask_pred > 0.5).astype(np.uint8) * 255
+
+# Overlay mask
+mask_resized = cv2.resize(mask_pred, (image_size, image_size))
+image_np = np.array(image.resize((image_size, image_size)))
+overlay_mask = cv2.addWeighted(image_np, 0.7, cv2.cvtColor(mask_resized, cv2.COLOR_GRAY2RGB), 0.3, 0)
+
+st.subheader("🩸 U-Net Segmentation")
+st.image(overlay_mask, use_column_width=True)
