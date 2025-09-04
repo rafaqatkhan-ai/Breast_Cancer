@@ -101,3 +101,61 @@ if uploaded_file is not None:
 
     # Visualization (Grad-CAM placeholder)
     st.info("Grad-CAM and U-Net tumor segmentation can be added for boundary visualization.")
+    # -------------------------------
+# GRAD-CAM IMPLEMENTATION
+# -------------------------------
+class GradCAM:
+    def __init__(self, model, target_layer):
+        self.model = model
+        self.target_layer = target_layer
+        self.gradients = None
+        self.activations = None
+        self.hook_handles = []
+        self._register_hooks()
+
+    def _register_hooks(self):
+        def forward_hook(module, input, output):
+            self.activations = output.detach()
+
+        def backward_hook(module, grad_in, grad_out):
+            self.gradients = grad_out[0].detach()
+
+        self.hook_handles.append(self.target_layer.register_forward_hook(forward_hook))
+        self.hook_handles.append(self.target_layer.register_backward_hook(backward_hook))
+
+    def remove_hooks(self):
+        for handle in self.hook_handles:
+            handle.remove()
+
+    def generate(self, input_tensor, class_idx=None):
+        output = self.model(input_tensor)
+        if class_idx is None:
+            class_idx = output.argmax(dim=1).item()
+
+        self.model.zero_grad()
+        target = output[:, class_idx]
+        target.backward()
+
+        weights = self.gradients.mean(dim=(2, 3), keepdim=True)
+        cam = (weights * self.activations).sum(dim=1, keepdim=True)
+        cam = torch.relu(cam)
+        cam = cam.squeeze().cpu().numpy()
+        cam = cv2.resize(cam, (image_size, image_size))
+        cam = (cam - cam.min()) / (cam.max() - cam.min() + 1e-8)
+
+        return cam
+
+# Grad-CAM usage
+target_layer = model.feature_extractor.features[-1]  # last conv block
+grad_cam = GradCAM(model, target_layer)
+cam = grad_cam.generate(input_tensor)
+
+# Overlay heatmap
+heatmap = cv2.applyColorMap(np.uint8(255 * cam), cv2.COLORMAP_JET)
+heatmap = np.float32(heatmap) / 255
+overlay = heatmap + np.float32(image.resize((image_size, image_size))) / 255
+overlay = overlay / np.max(overlay)
+
+st.subheader("🔥 Grad-CAM Visualization")
+st.image((overlay * 255).astype(np.uint8), use_column_width=True)
+
