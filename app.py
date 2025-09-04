@@ -157,15 +157,61 @@ if uploaded_file is not None:
 # U-NET SEGMENTATION (placeholder)
 # -------------------------------
 # Assume you trained and saved unet_model.pth
-unet_model = smp.Unet(
-    encoder_name="resnet34", 
-    encoder_weights="imagenet", 
-    in_channels=3, 
-    classes=1
-).to(device)
+# -------------------------------
+# SIMPLE CUSTOM U-NET (no SMP needed)
+# -------------------------------
+class DoubleConv(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super().__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True)
+        )
+    def forward(self, x):
+        return self.conv(x)
 
+class UNet(nn.Module):
+    def __init__(self, n_channels=3, n_classes=1):
+        super(UNet, self).__init__()
+        self.down1 = DoubleConv(n_channels, 64)
+        self.pool1 = nn.MaxPool2d(2)
+        self.down2 = DoubleConv(64, 128)
+        self.pool2 = nn.MaxPool2d(2)
+
+        self.bottleneck = DoubleConv(128, 256)
+
+        self.up2 = nn.ConvTranspose2d(256, 128, 2, stride=2)
+        self.conv2 = DoubleConv(256, 128)
+        self.up1 = nn.ConvTranspose2d(128, 64, 2, stride=2)
+        self.conv1 = DoubleConv(128, 64)
+
+        self.final = nn.Conv2d(64, n_classes, kernel_size=1)
+
+    def forward(self, x):
+        d1 = self.down1(x)
+        p1 = self.pool1(d1)
+        d2 = self.down2(p1)
+        p2 = self.pool2(d2)
+
+        bn = self.bottleneck(p2)
+
+        u2 = self.up2(bn)
+        u2 = torch.cat([u2, d2], dim=1)
+        u2 = self.conv2(u2)
+
+        u1 = self.up1(u2)
+        u1 = torch.cat([u1, d1], dim=1)
+        u1 = self.conv1(u1)
+
+        return torch.sigmoid(self.final(u1))
+
+# Load lightweight U-Net
+unet_model = UNet(n_channels=3, n_classes=1).to(device)
 unet_model.load_state_dict(torch.load("unet_model.pth", map_location=device))
 unet_model.eval()
+
 
 with torch.no_grad():
     mask_pred = torch.sigmoid(unet_model(input_tensor)).cpu().numpy()[0,0]
